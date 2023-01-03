@@ -43,3 +43,13 @@ Follow the same above steps to generate Client certificate PKCS12 file and insta
 3. Import client-app.cer to cacerts and rootCA.crt to cacerts
 keytool -import -alias client-app -file client-app.cer -keystore cacerts
 
+To build 
+mvn clean package spring-boot:repackage
+
+To run use eithe command
+mvn clean spring-boot:run
+java -jar target/sample-2way-ssl-server-0.0.1-SNAPSHOT.jar
+
+Access the site
+https://localhost:8443/server-app/data
+
