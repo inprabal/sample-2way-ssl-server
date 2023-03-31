@@ -1,0 +1,83 @@
+# Utilize the docker container image tagged as "maven:latest"
+image: maven:latest
+
+# We now specify the differnt stages of our CI build. We have 3 stages
+stages:
+  - "test"
+  - "visualize"
+  - "build"
+
+include:
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+
+# Here we specify variables which may be used later
+# These variables will be available via the CLI as $VARIABLE_NAME
+variables:
+  MAVEN_OPTS: >-
+    -Dhttps.protocols=TLSv1.2
+    -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
+    -Dorg.slf4j.simpleLogger.showDateTime=true
+    -Djava.awt.headless=true
+  MAVEN_CLI_OPTS: >-
+    --batch-mode
+    --errors
+    --fail-at-end
+    --show-version
+    --no-transfer-progress
+    -DinstallAtEnd=true
+    -DdeployAtEnd=true
+
+# Here we are indicating which paths on the filesystem we would like to cache
+# i.e. keep for later. This gives us the option to have faster builds.
+# In this specific instance we are caching the maven repo directory which means
+# maven will not have download packages from the internet next time it runs
+
+cache:
+  paths:
+    - .m2/repository
+
+test-job:
+  stage: "test"
+  script:
+    - echo "Start compile and test"
+    - mvn clean test
+  artifacts:
+    untracked: false
+    when: always
+    expire_in: "2 days"
+    paths:
+      - "target/site/jacoco/jacoco.xml"
+    reports:
+      junit: "target/surefire-reports/*.xml"
+
+coverage-job:
+  stage: "visualize"
+  image: haynes/jacoco2cobertura
+  script:
+    # convert report from jacoco to cobertura, using relative project path
+    - python /opt/cover2cover.py target/site/jacoco/jacoco.xml $CI_PROJECT_DIR/src/main/java/ > target/site/cobertura.xml
+  needs: 
+    - job: test-job
+      artifacts: true
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: target/site/cobertura.xml
+
+
+build-job:
+  stage: "build"
+  script:
+    - echo "Compiling the code"
+    - mvn $MAVEN_CLI_OPTS package -Dmaven.test.skip=true spring-boot:repackage
+    - echo "Compiling complete"
+  artifacts:
+    untracked: false
+    when: on_success
+    expire_in: "2 days"
+    paths:
+      - target/*.jar
+  
+    
