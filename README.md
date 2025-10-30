@@ -31,7 +31,34 @@ openssl x509 -req -in server-app.csr -CA rootCA.crt -CAkey rootCA.key -CAcreates
 openssl x509 -in server-app.crt -text -noout
 
 8.Convert server-app.key to server-app.p12  
-openssl pkcs12 -export -out server-app.p12 -inkey server-app.key -in server-app.crt -name server-app -certfile rootCA.crt
+openssl pkcs12 -export -out server-app.p12 -inkey server-app.key -in server-app.crt -name server-app -certfile rootCA.crt   
+
+###
+The Fix for MAC : Use -legacy flag
+
+This flag forces OpenSSL to use the older Apple-compatible format.
+
+Run this exact command:
+
+openssl pkcs12 -export \
+  -inkey server-app.key.nopass \
+  -in server-app.crt \
+  -certfile rootCA.crt \
+  -out server-app-legacy.p12 \
+  -name "server-app" \
+  -legacy \
+  -passout pass:changeit
+
+
+Then:
+
+Double-click server-app-legacy.p12 on Mac →
+Enter password → changeit
+
+✅ It will now import cleanly (no wrong-password error).
+✅ Same file works on iPhone too.
+
+###
 
 9.Convert to jks format  
 keytool -importkeystore -srckeystore server-app.p12 -srcstoretype PKCS12 -destkeystore server-app.jks  -deststoretype JKS -srcstorepass server-app -deststorepass server-app -srcalias 1 -destalias server-app -srckeypass server-app -destkeypass server-app -noprompt
